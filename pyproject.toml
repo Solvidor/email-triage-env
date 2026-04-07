@@ -1,0 +1,19 @@
+[project]
+name = "email-triage-env"
+version = "0.1.0"
+description = "OpenEnv environment for customer support ticket classification"
+authors = [
+    { name = "Your Name" }
+]
+dependencies = [
+    "pydantic",
+    "fastapi",
+    "uvicorn",
+    "openenv-core>=0.2.0"
+]
+
+[tool.openenv]
+env = "env.email_env:EmailEnv"
+
+[project.scripts]
+server = "server.app:main"

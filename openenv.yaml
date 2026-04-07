@@ -1,0 +1,27 @@
+name: email-triage-env
+description: Environment for classifying customer support tickets into priority and category.
+
+observation_space:
+  type: object
+  properties:
+    ticket_text:
+      type: string
+
+action_space:
+  type: object
+  properties:
+    priority:
+      type: string
+      enum: ["high", "medium", "low"]
+    category:
+      type: string
+      enum: ["billing", "technical", "general"]
+
+reward:
+  type: float
+  description: Reward based on correct classification. Partial credit for partially correct answers.
+
+tasks:
+  - easy
+  - medium
+  - hard
