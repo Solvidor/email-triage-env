@@ -1,7 +1,9 @@
 from pydantic import BaseModel
 
 
-# ✅ Models
+# =========================
+# MODELS
+# =========================
 class Observation(BaseModel):
     ticket_text: str
 
@@ -15,7 +17,9 @@ class Reward(BaseModel):
     value: float
 
 
-# ✅ TASKS (with sentiment - creative twist)
+# =========================
+# TASKS (with sentiment - creative twist)
+# =========================
 TASKS = {
     "priority_only": [
         {
@@ -60,7 +64,9 @@ TASKS = {
 }
 
 
-# ✅ ENV CLASS
+# =========================
+# ENV CLASS
+# =========================
 class EmailEnv:
     def __init__(self, task="priority_only"):
         if task not in TASKS:
@@ -82,49 +88,57 @@ class EmailEnv:
 
         reward_value = 0.0
 
-        # ✅ DIFFERENT GRADERS
+        # =========================
+        # PRIORITY ONLY
+        # =========================
         if self.task_type == "priority_only":
             if action.priority == current["priority"]:
-                reward_value = 1.0
+                reward_value = 0.9
+            elif action.priority:
+                reward_value = 0.4
             else:
-                reward_value = 0.0
+                reward_value = 0.1
 
+        # =========================
+        # CATEGORY ONLY
+        # =========================
         elif self.task_type == "category_only":
             if action.category == current["category"]:
-                reward_value = 1.0
+                reward_value = 0.9
+            elif action.category:
+                reward_value = 0.4
             else:
-                reward_value = 0.0
+                reward_value = 0.1
 
+        # =========================
+        # FULL TRIAGE
+        # =========================
         elif self.task_type == "full_triage":
+            reward_value = 0.0
+
+            # priority scoring
             if action.priority == current["priority"]:
                 reward_value += 0.4
-            else:
-                reward_value -= 0.2
+            elif action.priority:
+                reward_value += 0.2
 
+            # category scoring
             if action.category == current["category"]:
                 reward_value += 0.4
-            else:
-                reward_value -= 0.2
+            elif action.category:
+                reward_value += 0.2
 
-            # ✅ bonus for perfect match
+            # bonus for perfect match
             if (
                 action.priority == current["priority"] and
                 action.category == current["category"]
             ):
-                reward_value += 0.2
+                reward_value += 0.1
 
-        # ✅ penalty for empty action
-        if not action.priority and not action.category:
-            reward_value -= 0.5
-
-        # 🔥 CREATIVE TWIST: sentiment-based reward shaping
-        sentiment = current.get("sentiment", "neutral")
-
-        if sentiment == "angry":
-            reward_value *= 1.2   # higher stakes
-
-        elif sentiment == "calm":
-            reward_value *= 0.9   # less critical
+        # =========================
+        # CLAMP (VERY IMPORTANT)
+        # =========================
+        reward_value = max(0.0, min(1.0, reward_value))
 
         self.index += 1
         done = self.index >= len(self.tasks)
