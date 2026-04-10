@@ -1,6 +1,5 @@
 import os
 from typing import List
-
 from openai import OpenAI
 from env.email_env import EmailEnv, Action
 
@@ -12,26 +11,21 @@ API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 
-TASK = "easy"
 BENCHMARK = "email-triage-env"
 
-
 # ==============================
-# OPTIONAL OPENAI CLIENT
+# OPENAI CLIENT (OPTIONAL)
 # ==============================
 client = None
 if API_KEY:
-    client = OpenAI(
-        base_url=API_BASE_URL,
-        api_key=API_KEY
-    )
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
 
 
 # ==============================
-# LOGGING FUNCTIONS
+# LOGGING FUNCTIONS (STRICT FORMAT)
 # ==============================
-def log_start(task: str, env: str, model: str):
-    print(f"[START] task={task} env={env} model={model}", flush=True)
+def log_start(task: str):
+    print(f"[START] task={task} env={BENCHMARK} model={MODEL_NAME}", flush=True)
 
 
 def log_step(step: int, action: str, reward: float, done: bool, error: str):
@@ -42,22 +36,76 @@ def log_step(step: int, action: str, reward: float, done: bool, error: str):
     )
 
 
-def log_end(success: bool, steps: int, score: float, rewards: List[str]):
+def log_end(success: bool, steps: int, rewards: List[str]):
     print(
         f"[END] success={str(success).lower()} steps={steps} "
-        f"score={score:.2f} rewards={','.join(rewards)}",
+        f"rewards={','.join(rewards)}",
         flush=True
     )
 
 
 # ==============================
-# MAIN FUNCTION
+# ACTION LOGIC (LLM + FALLBACK)
 # ==============================
-def main():
-    env = EmailEnv(task=TASK)
+def get_action(state_text: str):
+    text = state_text.lower()
+
+    # 🔥 Try OpenAI API first
+    if client:
+        try:
+            completion = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Classify support ticket into priority (high/medium/low) and category (billing/technical/general). Return format: priority,category"
+                    },
+                    {
+                        "role": "user",
+                        "content": state_text
+                    }
+                ],
+                temperature=0
+            )
+
+            response = (completion.choices[0].message.content or "").lower()
+
+            parts = response.split(",")
+            if len(parts) == 2:
+                return Action(
+                    priority=parts[0].strip(),
+                    category=parts[1].strip()
+                )
+
+        except Exception:
+            pass  # fallback if API fails
+
+    # ✅ SAFE FALLBACK (deterministic)
+    if "payment" in text or "refund" in text:
+        category = "billing"
+    elif "crash" in text or "bug" in text:
+        category = "technical"
+    else:
+        category = "general"
+
+    if "urgent" in text or "asap" in text:
+        priority = "high"
+    elif "slow" in text or "delay" in text:
+        priority = "medium"
+    else:
+        priority = "high"
+
+    return Action(priority=priority, category=category)
+
+
+# ==============================
+# RUN SINGLE TASK
+# ==============================
+def run_task(task_name: str):
+    env = EmailEnv(task=task_name)
     state = env.reset()
 
-    log_start(TASK, BENCHMARK, MODEL_NAME)
+    log_start(task_name)
 
     step_num = 0
     rewards = []
@@ -68,58 +116,7 @@ def main():
             step_num += 1
             error = "null"
 
-            # ===== LLM RESPONSE (SAFE) =====
-            response = ""
-
-            if client:
-                try:
-                    completion = client.chat.completions.create(
-                        model=MODEL_NAME,
-                        messages=[
-                            {
-                                "role": "system",
-                                "content": "Classify support ticket into priority (high/medium/low) and category (billing/technical/general). Return only category name."
-                            },
-                            {
-                                "role": "user",
-                                "content": state.ticket_text
-                            }
-                        ],
-                        temperature=0
-                    )
-
-                    response = (completion.choices[0].message.content or "").lower()
-
-                except Exception as e:
-                    error = str(e)
-
-            text = state.ticket_text.lower()
-
-            # ===== CATEGORY =====
-            if response:
-                if "billing" in response:
-                    category = "billing"
-                elif "technical" in response:
-                    category = "technical"
-                else:
-                    category = "general"
-            else:
-                if "payment" in text or "refund" in text:
-                    category = "billing"
-                elif "crash" in text or "bug" in text:
-                    category = "technical"
-                else:
-                    category = "general"
-
-            # ===== IMPROVED PRIORITY LOGIC =====
-            if "urgent" in text or "asap" in text or "immediately" in text:
-                priority = "high"
-            elif "slow" in text or "delay" in text:
-                priority = "medium"
-            else:
-                priority = "high"
-
-            action = Action(priority=priority, category=category)
+            action = get_action(state.ticket_text)
 
             state, reward, done, info = env.step(action)
 
@@ -133,20 +130,21 @@ def main():
                 error=error
             )
 
-        # ===== SCORE =====
-        numeric_rewards = [float(r) for r in rewards]
-        score = sum(numeric_rewards) / len(numeric_rewards) if rewards else 0.0
-
-        success = done
-
-        log_end(success, step_num, score, rewards)
+        log_end(True, step_num, rewards)
 
     except Exception:
-        log_end(False, step_num, 0.0, rewards)
+        log_end(False, step_num, rewards)
 
 
 # ==============================
-# ENTRY POINT
+# MAIN
 # ==============================
+def main():
+    tasks = ["priority_only", "category_only", "full_triage"]
+
+    for task in tasks:
+        run_task(task)
+
+
 if __name__ == "__main__":
     main()

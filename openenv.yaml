@@ -22,6 +22,6 @@ reward:
   description: Reward based on correct classification. Partial credit for partially correct answers.
 
 tasks:
-  - easy
-  - medium
-  - hard
+  - priority_only
+  - category_only
+  - full_triage

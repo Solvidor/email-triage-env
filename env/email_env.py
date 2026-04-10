@@ -1,39 +1,72 @@
 from pydantic import BaseModel
 
 
-# ✅ Typed Models
+# ✅ Models
 class Observation(BaseModel):
     ticket_text: str
 
 
 class Action(BaseModel):
-    priority: str
-    category: str
+    priority: str = None
+    category: str = None
 
 
 class Reward(BaseModel):
     value: float
 
 
-# ✅ Tasks
+# ✅ TASKS (with sentiment - creative twist)
 TASKS = {
-    "easy": [
-        {"text": "Payment failed", "priority": "high", "category": "billing"},
-        {"text": "App crash issue", "priority": "medium", "category": "technical"},
+    "priority_only": [
+        {
+            "text": "URGENT: Payment failed and customer is furious",
+            "priority": "high",
+            "sentiment": "angry"
+        },
+        {
+            "text": "App occasionally crashes after update",
+            "priority": "medium",
+            "sentiment": "neutral"
+        }
     ],
-    "medium": [
-        {"text": "Refund not processed yet", "priority": "high", "category": "billing"},
-        {"text": "App is slow sometimes", "priority": "medium", "category": "technical"},
+
+    "category_only": [
+        {
+            "text": "Refund not processed after 5 days, very frustrated",
+            "category": "billing",
+            "sentiment": "angry"
+        },
+        {
+            "text": "App UI freezes when clicking button",
+            "category": "technical",
+            "sentiment": "neutral"
+        }
     ],
-    "hard": [
-        {"text": "Charged twice and app crashes", "priority": "high", "category": "billing"},
-        {"text": "Login issue and payment failed", "priority": "high", "category": "technical"},
+
+    "full_triage": [
+        {
+            "text": "Customer extremely angry: charged twice and app crashes",
+            "priority": "high",
+            "category": "billing",
+            "sentiment": "angry"
+        },
+        {
+            "text": "User politely reports login issue and payment failure",
+            "priority": "high",
+            "category": "technical",
+            "sentiment": "calm"
+        }
     ]
 }
 
 
+# ✅ ENV CLASS
 class EmailEnv:
-    def __init__(self, task="easy"):
+    def __init__(self, task="priority_only"):
+        if task not in TASKS:
+            raise ValueError("Invalid task type")
+
+        self.task_type = task
         self.tasks = TASKS[task]
         self.index = 0
 
@@ -45,17 +78,53 @@ class EmailEnv:
         return Observation(ticket_text=self.tasks[self.index]["text"])
 
     def step(self, action: Action):
-        correct = self.tasks[self.index]
+        current = self.tasks[self.index]
 
         reward_value = 0.0
 
-        if action.priority == correct["priority"]:
-            reward_value += 0.5
-        if action.category == correct["category"]:
-            reward_value += 0.5
+        # ✅ DIFFERENT GRADERS
+        if self.task_type == "priority_only":
+            if action.priority == current["priority"]:
+                reward_value = 1.0
+            else:
+                reward_value = 0.0
 
-        if reward_value == 0.0:
-            reward_value = -0.2
+        elif self.task_type == "category_only":
+            if action.category == current["category"]:
+                reward_value = 1.0
+            else:
+                reward_value = 0.0
+
+        elif self.task_type == "full_triage":
+            if action.priority == current["priority"]:
+                reward_value += 0.4
+            else:
+                reward_value -= 0.2
+
+            if action.category == current["category"]:
+                reward_value += 0.4
+            else:
+                reward_value -= 0.2
+
+            # ✅ bonus for perfect match
+            if (
+                action.priority == current["priority"] and
+                action.category == current["category"]
+            ):
+                reward_value += 0.2
+
+        # ✅ penalty for empty action
+        if not action.priority and not action.category:
+            reward_value -= 0.5
+
+        # 🔥 CREATIVE TWIST: sentiment-based reward shaping
+        sentiment = current.get("sentiment", "neutral")
+
+        if sentiment == "angry":
+            reward_value *= 1.2   # higher stakes
+
+        elif sentiment == "calm":
+            reward_value *= 0.9   # less critical
 
         self.index += 1
         done = self.index >= len(self.tasks)

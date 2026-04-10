@@ -1,165 +1,170 @@
----
-title: Email Triage OpenEnv
-emoji: 🤖
-colorFrom: blue
-colorTo: green
-sdk: docker
-app_file: server/app.py
-pinned: false
----
-# Email Triage OpenEnv
+# 📧 Sentiment-Aware Customer Support Triage Environment
 
-## Description
+## 🚀 Overview
 
-This environment simulates a real-world customer support workflow where an AI agent must classify incoming support tickets into the correct priority and category.
+This project implements a **real-world OpenEnv environment** simulating customer support ticket triage.
+An AI agent must classify incoming support requests based on:
 
-It is designed for training and evaluating agents on structured decision-making tasks.
+* **Priority** (high / medium / low)
+* **Category** (billing / technical / general)
+
+What makes this environment unique is the introduction of **sentiment-aware reward shaping**, where emotionally charged tickets influence the reward signal.
 
 ---
 
-## Observation Space
+## 🧠 Motivation
 
-The agent receives:
+In real-world customer support systems:
 
-* `ticket_text` (string): The content of the customer support request.
+* Angry customers require faster and more accurate responses
+* Misclassification of urgent issues leads to poor user experience
 
-Example:
+This environment models that behavior by:
+
+* Introducing **sentiment-based urgency**
+* Penalizing incorrect decisions more heavily for critical cases
+* Rewarding precise handling of high-stakes scenarios
+
+---
+
+## ⚙️ Environment Design
+
+### Observation Space
 
 ```json
 {
-  "ticket_text": "Payment failed while placing order"
+  "ticket_text": "string"
 }
 ```
 
----
-
-## Action Space
-
-The agent must output:
-
-* `priority`: `"high"`, `"medium"`, `"low"`
-* `category`: `"billing"`, `"technical"`, `"general"`
-
-Example:
+### Action Space
 
 ```json
 {
-  "priority": "high",
-  "category": "billing"
+  "priority": "high | medium | low",
+  "category": "billing | technical | general"
 }
 ```
 
----
+### Reward Function
 
-## Tasks
+The reward is designed to provide **dense feedback**:
 
-### Easy
+* Correct prediction → positive reward
+* Partial correctness → partial reward
+* Incorrect prediction → penalty
+* Empty/invalid action → strong penalty
 
-* Simple, single-issue tickets
-* Clear mapping to category and priority
+Additionally:
 
-### Medium
-
-* Slightly ambiguous tickets
-* Requires better understanding of context
-
-### Hard
-
-* Multi-issue or confusing tickets
-* Requires reasoning across multiple signals
+* **Angry tickets → amplified reward/penalty (×1.2)**
+* **Calm tickets → reduced impact (×0.9)**
 
 ---
 
-## Reward Function
+## 🧩 Tasks
 
-* **1.0** → Both priority and category correct
-* **0.5** → One correct (partial match)
-* **-0.2** → Both incorrect
+The environment contains **three distinct tasks with independent graders**:
 
-The reward provides meaningful feedback across the trajectory.
+### 1. Priority Classification
 
----
+* Agent predicts urgency level
+* Evaluates ability to detect critical issues
 
-## Environment API
+### 2. Category Classification
 
-### reset()
+* Agent identifies issue type (billing / technical)
+* Tests semantic understanding
 
-Returns initial observation
+### 3. Full Triage (Hard Task)
 
-### step(action)
-
-Returns:
-
-* observation
-* reward
-* done
-* info
-
-### state()
-
-Returns current state
+* Agent predicts both priority and category
+* Includes **multi-objective grading + sentiment impact**
 
 ---
 
-## Setup Instructions
+## 📊 Reward Strategy
 
-Build the Docker container:
+| Scenario          | Reward            |
+| ----------------- | ----------------- |
+| Fully correct     | High reward       |
+| Partially correct | Partial reward    |
+| Incorrect         | Penalty           |
+| Empty action      | Strong penalty    |
+| Angry ticket      | Amplified outcome |
+| Calm ticket       | Reduced impact    |
+
+---
+
+## 🤖 Baseline Behavior
+
+A baseline agent can:
+
+* Read ticket text
+* Predict labels using an LLM
+* Achieve reproducible scores across tasks
+
+---
+
+## 🐳 Running the Environment
+
+### Build Docker Image
 
 ```bash
 docker build -t openenv-project .
 ```
 
-Run the environment:
+### Run Container
 
 ```bash
 docker run -p 7860:7860 openenv-project
 ```
 
----
-
-## Usage
-
-### Reset environment
+### Test API
 
 ```bash
-POST /reset
-```
-
-### Take a step
-
-```bash
-POST /step
+curl -X POST http://localhost:7860/reset
 ```
 
 ---
 
-## Baseline Inference
+## 📦 Project Structure
 
-Run:
-
-```bash
-python inference.py
+```
+openenv-project/
+│── env/
+│── server/
+│── openenv.yaml
+│── pyproject.toml
+│── Dockerfile
+│── inference.py
 ```
 
-This script:
+---
 
-* Executes the environment
-* Logs output in required `[START]`, `[STEP]`, `[END]` format
-* Produces reproducible baseline scores
+## 🌟 Key Features
+
+* ✅ Real-world customer support simulation
+* ✅ Multi-task evaluation with independent graders
+* ✅ Sentiment-aware reward shaping (novel contribution)
+* ✅ Deterministic scoring system
+* ✅ OpenEnv compliant & Dockerized
 
 ---
 
-## Deployment
+## 🏁 Conclusion
 
-This environment is containerized and deployed using:
+This environment provides a **realistic and challenging benchmark** for evaluating AI agents in customer support scenarios.
 
-* Docker
-* Hugging Face Spaces (Docker SDK)
+By incorporating **human emotion into reward dynamics**, it introduces a layer of complexity that better reflects real-world decision-making.
 
 ---
 
-## Notes
+## 🔮 Future Improvements
 
-* Fully compliant with OpenEnv specification
-* Includes typed models using Pydantic
-* Supports deterministic evaluation with reproducible results
+* Multi-turn conversations
+* Context-aware ticket history
+* Escalation workflows
+* Response generation evaluation
+
+---
