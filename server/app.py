@@ -18,13 +18,21 @@ class ResetRequest(BaseModel):
 
 
 # 🔄 RESET ENDPOINT
-@app.post("/reset")
-def reset(req: ResetRequest):
-    global env
-    env = EmailEnv(task=req.task)
-    state = env.reset()
-    return state.model_dump()
+from fastapi import Body
 
+@app.post("/reset")
+def reset(req: ResetRequest = Body(default=None)):
+    global env
+
+    task = "priority_only"  # default
+
+    if req and req.task:
+        task = req.task
+
+    env = EmailEnv(task=task)
+    state = env.reset()
+
+    return state.model_dump()
 
 # ▶ STEP ENDPOINT
 @app.post("/step")
