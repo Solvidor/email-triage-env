@@ -13,12 +13,20 @@ API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 
 BENCHMARK = "email-triage-env"
 
+
 # ==============================
 # OPENAI CLIENT (OPTIONAL)
 # ==============================
 client = None
 if API_KEY:
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+
+
+# ==============================
+# SAFE CLAMP FUNCTION (CRITICAL)
+# ==============================
+def safe_value(x: float) -> float:
+    return max(0.0001, min(0.9999, x))
 
 
 # ==============================
@@ -29,6 +37,7 @@ def log_start(task: str):
 
 
 def log_step(step: int, action: str, reward: float, done: bool, error: str):
+    reward = safe_value(reward)  # 🔥 ensure safe before logging
     print(
         f"[STEP] step={step} action={action} "
         f"reward={reward:.2f} done={str(done).lower()} error={error}",
@@ -120,12 +129,15 @@ def run_task(task_name: str):
 
             state, reward, done, info = env.step(action)
 
-            rewards.append(f"{reward.value:.2f}")
+            # 🔥 Clamp reward BEFORE storing/logging
+            safe_reward = safe_value(reward.value)
+
+            rewards.append(f"{safe_reward:.2f}")
 
             log_step(
                 step=step_num,
                 action=str(action.model_dump()),
-                reward=reward.value,
+                reward=safe_reward,
                 done=done,
                 error=error
             )
