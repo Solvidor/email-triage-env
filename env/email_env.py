@@ -87,36 +87,36 @@ class EmailEnv:
         current = self.tasks[self.index]
 
         # =========================
-        # SMOOTH REWARD SYSTEM
+        # SAFE SMOOTH REWARD SYSTEM
         # =========================
-        reward_value = 0.2  # base reward (prevents 0)
+        reward_value = 0.25  # safe base
 
         # PRIORITY contribution
         if "priority" in current:
             if action.priority == current["priority"]:
-                reward_value += 0.3
+                reward_value += 0.2
             elif action.priority:
-                reward_value += 0.15
+                reward_value += 0.1
 
         # CATEGORY contribution
         if "category" in current:
             if action.category == current["category"]:
-                reward_value += 0.3
+                reward_value += 0.2
             elif action.category:
-                reward_value += 0.15
+                reward_value += 0.1
 
-        # BONUS for perfect match
+        # SMALL BONUS (not too strong)
         if (
             "priority" in current and "category" in current and
             action.priority == current.get("priority") and
             action.category == current.get("category")
         ):
-            reward_value += 0.1
+            reward_value += 0.05
 
         # =========================
-        # FINAL STRICT RANGE
+        # STRICT SAFE RANGE
         # =========================
-        reward_value = max(0.05, min(0.95, reward_value))
+        reward_value = max(0.05, min(0.9, reward_value))
 
         self.index += 1
         done = self.index >= len(self.tasks)
