@@ -95,9 +95,9 @@ class EmailEnv:
             if action.priority == current["priority"]:
                 reward_value = 0.9
             elif action.priority:
-                reward_value = 0.4
+                reward_value = 0.5
             else:
-                reward_value = 0.1
+                reward_value = 0.2
 
         # =========================
         # CATEGORY ONLY
@@ -106,27 +106,27 @@ class EmailEnv:
             if action.category == current["category"]:
                 reward_value = 0.9
             elif action.category:
-                reward_value = 0.4
+                reward_value = 0.5
             else:
-                reward_value = 0.1
+                reward_value = 0.2
 
         # =========================
         # FULL TRIAGE
         # =========================
         elif self.task_type == "full_triage":
-            reward_value = 0.0
+            reward_value = 0.1  # base to avoid 0
 
             # priority scoring
             if action.priority == current["priority"]:
-                reward_value += 0.4
+                reward_value += 0.3
             elif action.priority:
-                reward_value += 0.2
+                reward_value += 0.15
 
             # category scoring
             if action.category == current["category"]:
-                reward_value += 0.4
+                reward_value += 0.3
             elif action.category:
-                reward_value += 0.2
+                reward_value += 0.15
 
             # bonus for perfect match
             if (
@@ -136,9 +136,9 @@ class EmailEnv:
                 reward_value += 0.1
 
         # =========================
-        # CLAMP (VERY IMPORTANT)
+        # STRICT CLAMP (CRITICAL FIX)
         # =========================
-        reward_value = max(0.0, min(1.0, reward_value))
+        reward_value = max(0.01, min(0.99, reward_value))
 
         self.index += 1
         done = self.index >= len(self.tasks)
