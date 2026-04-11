@@ -72,7 +72,6 @@ class EmailEnv:
         if task not in TASKS:
             raise ValueError("Invalid task type")
 
-        self.task_type = task
         self.tasks = TASKS[task]
         self.index = 0
 
@@ -87,36 +86,35 @@ class EmailEnv:
         current = self.tasks[self.index]
 
         # =========================
-        # SAFE SMOOTH REWARD SYSTEM
+        # UNIFIED GRADER (FINAL FIX)
         # =========================
         reward_value = 0.25  # safe base
 
-        # PRIORITY contribution
-        if "priority" in current:
-            if action.priority == current["priority"]:
-                reward_value += 0.2
-            elif action.priority:
-                reward_value += 0.1
+        # PRIORITY (always evaluated)
+        if action.priority:
+            if "priority" in current:
+                if action.priority == current["priority"]:
+                    reward_value += 0.2
+                else:
+                    reward_value += 0.1
+            else:
+                reward_value += 0.15  # fallback
 
-        # CATEGORY contribution
-        if "category" in current:
-            if action.category == current["category"]:
-                reward_value += 0.2
-            elif action.category:
-                reward_value += 0.1
-
-        # SMALL BONUS (not too strong)
-        if (
-            "priority" in current and "category" in current and
-            action.priority == current.get("priority") and
-            action.category == current.get("category")
-        ):
-            reward_value += 0.05
+        # CATEGORY (always evaluated)
+        if action.category:
+            if "category" in current:
+                if action.category == current["category"]:
+                    reward_value += 0.2
+                else:
+                    reward_value += 0.1
+            else:
+                reward_value += 0.15  # fallback
 
         # =========================
-        # STRICT SAFE RANGE
+        # STRICT RANGE
         # =========================
-        reward_value = max(0.05, min(0.9, reward_value))
+        reward_value = max(0.05, min(0.95, reward_value))
+        reward_value = round(reward_value, 4)
 
         self.index += 1
         done = self.index >= len(self.tasks)
