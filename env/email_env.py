@@ -18,32 +18,28 @@ class Reward(BaseModel):
 
 
 # =========================
-# TASKS (with sentiment - creative twist)
+# TASKS
 # =========================
 TASKS = {
     "priority_only": [
         {
             "text": "URGENT: Payment failed and customer is furious",
-            "priority": "high",
-            "sentiment": "angry"
+            "priority": "high"
         },
         {
             "text": "App occasionally crashes after update",
-            "priority": "medium",
-            "sentiment": "neutral"
+            "priority": "medium"
         }
     ],
 
     "category_only": [
         {
             "text": "Refund not processed after 5 days, very frustrated",
-            "category": "billing",
-            "sentiment": "angry"
+            "category": "billing"
         },
         {
             "text": "App UI freezes when clicking button",
-            "category": "technical",
-            "sentiment": "neutral"
+            "category": "technical"
         }
     ],
 
@@ -51,14 +47,12 @@ TASKS = {
         {
             "text": "Customer extremely angry: charged twice and app crashes",
             "priority": "high",
-            "category": "billing",
-            "sentiment": "angry"
+            "category": "billing"
         },
         {
-            "text": "User politely reports login issue and payment failure",
+            "text": "User reports login issue and payment failure",
             "priority": "high",
-            "category": "technical",
-            "sentiment": "calm"
+            "category": "technical"
         }
     ]
 }
@@ -85,33 +79,33 @@ class EmailEnv:
     def step(self, action: Action):
         current = self.tasks[self.index]
 
+        # =========================
+        # UNIFIED GRADER (FINAL)
+        # =========================
         reward_value = 0.3  # base
 
-    # PRIORITY
-        if "priority" in current:
-           if action.priority == current["priority"]:
-                reward_value += 0.25
-           else:
-                reward_value += 0.05
+        # PRIORITY (always evaluated)
+        if action.priority == current.get("priority"):
+            reward_value += 0.2
+        elif action.priority is not None:
+            reward_value += 0.1
+        else:
+            reward_value += 0.05
 
-    # CATEGORY
-        if "category" in current:
-           if action.category == current["category"]:
-                reward_value += 0.25
-           else:
-                reward_value += 0.05
+        # CATEGORY (always evaluated)
+        if action.category == current.get("category"):
+            reward_value += 0.2
+        elif action.category is not None:
+            reward_value += 0.1
+        else:
+            reward_value += 0.05
 
-    # ADD VARIATION (CRITICAL FIX)
-        # 🔥 TASK-SPECIFIC OFFSET (FINAL FIX)
-        if self.tasks == TASKS["priority_only"]:
-            reward_value += 0.01
-        elif self.tasks == TASKS["category_only"]:
-            reward_value += 0.02
-        elif self.tasks == TASKS["full_triage"]:
-            reward_value += 0.03
-
+        # SMALL STEP VARIATION
         reward_value += (self.index * 0.01)
-    # STRICT RANGE
+
+        # =========================
+        # STRICT RANGE (CRITICAL)
+        # =========================
         reward_value = max(0.05, min(0.95, reward_value))
         reward_value = round(reward_value, 4)
 
