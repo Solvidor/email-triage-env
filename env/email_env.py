@@ -102,8 +102,15 @@ class EmailEnv:
                 reward_value += 0.05
 
     # ADD VARIATION (CRITICAL FIX)
-        reward_value += (self.index * 0.02)
+        # 🔥 TASK-SPECIFIC OFFSET (FINAL FIX)
+        if self.tasks == TASKS["priority_only"]:
+            reward_value += 0.01
+        elif self.tasks == TASKS["category_only"]:
+            reward_value += 0.02
+        elif self.tasks == TASKS["full_triage"]:
+            reward_value += 0.03
 
+        reward_value += (self.index * 0.01)
     # STRICT RANGE
         reward_value = max(0.05, min(0.95, reward_value))
         reward_value = round(reward_value, 4)
