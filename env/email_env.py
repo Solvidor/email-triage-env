@@ -85,34 +85,26 @@ class EmailEnv:
     def step(self, action: Action):
         current = self.tasks[self.index]
 
-        # =========================
-        # UNIFIED GRADER (FINAL FIX)
-        # =========================
-        reward_value = 0.25  # safe base
+        reward_value = 0.3  # base
 
-        # PRIORITY (always evaluated)
-        if action.priority:
-            if "priority" in current:
-                if action.priority == current["priority"]:
-                    reward_value += 0.2
-                else:
-                    reward_value += 0.1
-            else:
-                reward_value += 0.15  # fallback
+    # PRIORITY
+        if "priority" in current:
+           if action.priority == current["priority"]:
+                reward_value += 0.25
+           else:
+                reward_value += 0.05
 
-        # CATEGORY (always evaluated)
-        if action.category:
-            if "category" in current:
-                if action.category == current["category"]:
-                    reward_value += 0.2
-                else:
-                    reward_value += 0.1
-            else:
-                reward_value += 0.15  # fallback
+    # CATEGORY
+        if "category" in current:
+           if action.category == current["category"]:
+                reward_value += 0.25
+           else:
+                reward_value += 0.05
 
-        # =========================
-        # STRICT RANGE
-        # =========================
+    # ADD VARIATION (CRITICAL FIX)
+        reward_value += (self.index * 0.02)
+
+    # STRICT RANGE
         reward_value = max(0.05, min(0.95, reward_value))
         reward_value = round(reward_value, 4)
 
