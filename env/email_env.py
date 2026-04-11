@@ -86,59 +86,37 @@ class EmailEnv:
     def step(self, action: Action):
         current = self.tasks[self.index]
 
-        reward_value = 0.0
+        # =========================
+        # SMOOTH REWARD SYSTEM
+        # =========================
+        reward_value = 0.2  # base reward (prevents 0)
 
-        # =========================
-        # PRIORITY ONLY
-        # =========================
-        if self.task_type == "priority_only":
-            if action.priority == current["priority"]:
-                reward_value = 0.9
-            elif action.priority:
-                reward_value = 0.5
-            else:
-                reward_value = 0.2
-
-        # =========================
-        # CATEGORY ONLY
-        # =========================
-        elif self.task_type == "category_only":
-            if action.category == current["category"]:
-                reward_value = 0.9
-            elif action.category:
-                reward_value = 0.5
-            else:
-                reward_value = 0.2
-
-        # =========================
-        # FULL TRIAGE
-        # =========================
-        elif self.task_type == "full_triage":
-            reward_value = 0.1  # base to avoid 0
-
-            # priority scoring
+        # PRIORITY contribution
+        if "priority" in current:
             if action.priority == current["priority"]:
                 reward_value += 0.3
             elif action.priority:
                 reward_value += 0.15
 
-            # category scoring
+        # CATEGORY contribution
+        if "category" in current:
             if action.category == current["category"]:
                 reward_value += 0.3
             elif action.category:
                 reward_value += 0.15
 
-            # bonus for perfect match
-            if (
-                action.priority == current["priority"] and
-                action.category == current["category"]
-            ):
-                reward_value += 0.1
+        # BONUS for perfect match
+        if (
+            "priority" in current and "category" in current and
+            action.priority == current.get("priority") and
+            action.category == current.get("category")
+        ):
+            reward_value += 0.1
 
         # =========================
-        # STRICT CLAMP (CRITICAL FIX)
+        # FINAL STRICT RANGE
         # =========================
-        reward_value = max(0.01, min(0.99, reward_value))
+        reward_value = max(0.05, min(0.95, reward_value))
 
         self.index += 1
         done = self.index >= len(self.tasks)
